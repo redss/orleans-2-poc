@@ -26,10 +26,13 @@ namespace OrleansPoc
                 .UseLocalhostClustering()
                 .AddMemoryGrainStorageAsDefault()
                 .UseInMemoryReminderService()
+                .AddSimpleMessageStreamProvider(DefaultStreamProvider.Name)
+                .AddMemoryGrainStorage("PubSubStore") // for streams
                 .Build();
 
             _clusterClient = new ClientBuilder()
                 .UseLocalhostClustering()
+                .AddSimpleMessageStreamProvider(DefaultStreamProvider.Name)
                 .Build();
         }
 

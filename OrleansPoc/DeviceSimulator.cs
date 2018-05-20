@@ -6,7 +6,7 @@ namespace OrleansPoc
 {
     public interface IDeviceSimulator : IGrainWithStringKey
     {
-        Task StartSimulation();
+        Task StartSimulation(TimeSpan interval);
     }
 
     public class DeviceSimulator : Grain<DeviceSimulatorState>, IDeviceSimulator
@@ -18,24 +18,29 @@ namespace OrleansPoc
 
         private string Id => this.GetPrimaryKeyString();
 
-        public Task StartSimulation()
+        public Task StartSimulation(TimeSpan interval)
         {
             RegisterTimer(
                 asyncCallback: state => Simulate(),
                 state: null,
-                dueTime: TimeSpan.FromSeconds(1),
-                period: TimeSpan.FromSeconds(1));
+                dueTime: TimeSpan.Zero,
+                period: interval);
 
             return Task.CompletedTask;
         }
 
-        private Task Simulate()
+        private async Task Simulate()
         {
             State.CurrentStatus = NextStatus(State.CurrentStatus);
 
-            Console.WriteLine($"Device {Id} is changing status to {State.CurrentStatus}.");
+            var asyncStream = GetStreamProvider(DefaultStreamProvider.Name)
+                .GetStream<DeviceStatusChanged>(Guid.Empty, "DeviceStatusChanged");
 
-            return Task.CompletedTask;
+            await asyncStream.OnNextAsync(new DeviceStatusChanged
+            {
+                DeviceId = Id,
+                NewStatus = State.CurrentStatus
+            });
         }
 
         private Status NextStatus(Status status)
@@ -49,6 +54,12 @@ namespace OrleansPoc
     public class DeviceSimulatorState
     {
         public Status CurrentStatus { get; set; } = Status.Free;
+    }
+
+    public class DeviceStatusChanged
+    {
+        public string DeviceId { get; set; }
+        public Status NewStatus { get; set; }
     }
 
     public enum Status
