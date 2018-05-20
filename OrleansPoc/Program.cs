@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Autofac;
-using Orleans;
 
 namespace OrleansPoc
 {
@@ -33,45 +32,18 @@ namespace OrleansPoc
 
                 Console.WriteLine($"Started Silo at {stopwatch.ElapsedMilliseconds} ms.");
 
-                var player = orleansApp.Client.GetGrain<IPlayerGrain>(Guid.NewGuid());
+                await orleansApp.Client.GetGrain<IDeviceSimulator>("1").StartSimulation();
 
-                Console.WriteLine(await player.Greet());
+                await Task.Delay(TimeSpan.FromMilliseconds(250));
 
-                Console.WriteLine($"Referenced first grain at {stopwatch.ElapsedMilliseconds} ms.");
+                await orleansApp.Client.GetGrain<IDeviceSimulator>("2").StartSimulation();
+
+                await Task.Delay(TimeSpan.FromMilliseconds(250));
+
+                await orleansApp.Client.GetGrain<IDeviceSimulator>("3").StartSimulation();
 
                 Console.ReadKey();
             }
-        }
-    }
-
-    public interface IPlayerGrain : IGrainWithGuidKey
-    {
-        Task<string> Greet();
-    }
-
-    public class PlayerGrain : Grain, IPlayerGrain
-    {
-        public PlayerGrain(ISomeService someService)
-        {
-            Console.WriteLine(someService.GetName());
-        }
-
-        public Task<string> Greet()
-        {
-            return Task.FromResult($"Hello, I'm player {this.GetPrimaryKey()}.");
-        }
-    }
-
-    public interface ISomeService
-    {
-        string GetName();
-    }
-
-    class ActualService : ISomeService
-    {
-        public string GetName()
-        {
-            return "I'm injected, yo!";
         }
     }
 }

@@ -24,6 +24,8 @@ namespace OrleansPoc
                     return new AutofacServiceProvider(_siloScope);
                 })
                 .UseLocalhostClustering()
+                .AddMemoryGrainStorageAsDefault()
+                .UseInMemoryReminderService()
                 .Build();
 
             _clusterClient = new ClientBuilder()
