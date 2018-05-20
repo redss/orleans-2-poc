@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Orleans;
 using Orleans.Hosting;
 
@@ -15,6 +16,10 @@ namespace OrleansPoc
             stopwatch.Start();
 
             var siloHostBuilder = new SiloHostBuilder()
+                .ConfigureServices(collection =>
+                {
+                    collection.AddSingleton<ISomeService>(new ActualService());
+                })
                 .UseLocalhostClustering();
 
             using (var siloHost = siloHostBuilder.Build())
@@ -55,9 +60,27 @@ namespace OrleansPoc
 
     public class PlayerGrain : Grain, IPlayerGrain
     {
+        public PlayerGrain(ISomeService someService)
+        {
+            Console.WriteLine(someService.GetName());
+        }
+
         public Task<string> Greet()
         {
             return Task.FromResult($"Hello, I'm player {this.GetPrimaryKey()}.");
+        }
+    }
+
+    public interface ISomeService
+    {
+        string GetName();
+    }
+
+    class ActualService : ISomeService
+    {
+        public string GetName()
+        {
+            return "I'm injected, yo!";
         }
     }
 }
