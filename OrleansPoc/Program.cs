@@ -2,9 +2,7 @@
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Autofac;
-using Autofac.Extensions.DependencyInjection;
 using Orleans;
-using Orleans.Hosting;
 
 namespace OrleansPoc
 {
@@ -18,59 +16,30 @@ namespace OrleansPoc
 
             var containerBuilder = new ContainerBuilder();
 
-            containerBuilder.RegisterType<ActualService>()
+            containerBuilder
+                .RegisterType<ActualService>()
                 .As<ISomeService>()
                 .SingleInstance();
 
+            containerBuilder
+                .RegisterType<LocalOrleansApp>()
+                .AsSelf();
+
             using (var container = containerBuilder.Build())
             {
-                ILifetimeScope siloScope = null;
+                var orleansApp = container.Resolve<LocalOrleansApp>();
 
-                try
-                {
-                    var siloHostBuilder = new SiloHostBuilder()
-                        .UseServiceProviderFactory(collection =>
-                        {
-                            // ReSharper disable once AccessToDisposedClosure
-                            siloScope = container.BeginLifetimeScope(builder => builder.Populate(collection));
+                await orleansApp.Start();
 
-                            return new AutofacServiceProvider(siloScope);
-                        })
-                        .UseLocalhostClustering();
+                Console.WriteLine($"Started Silo at {stopwatch.ElapsedMilliseconds} ms.");
 
-                    using (var siloHost = siloHostBuilder.Build())
-                    {
-                        await siloHost.StartAsync();
+                var player = orleansApp.Client.GetGrain<IPlayerGrain>(Guid.NewGuid());
 
-                        Console.WriteLine($"Started Silo at {stopwatch.ElapsedMilliseconds} ms.");
+                Console.WriteLine(await player.Greet());
 
-                        var clientBuilder = new ClientBuilder()
-                            .UseLocalhostClustering();
+                Console.WriteLine($"Referenced first grain at {stopwatch.ElapsedMilliseconds} ms.");
 
-                        using (var clusterClient = clientBuilder.Build())
-                        {
-                            await clusterClient.Connect();
-
-                            Console.WriteLine($"Connected client at {stopwatch.ElapsedMilliseconds} ms.");
-
-                            var player = clusterClient.GetGrain<IPlayerGrain>(Guid.NewGuid());
-
-                            Console.WriteLine(await player.Greet());
-
-                            Console.WriteLine($"Referenced first grain in {stopwatch.ElapsedMilliseconds} ms.");
-
-                            Console.ReadKey();
-
-                            await clusterClient.Close();
-                        }
-
-                        await siloHost.StopAsync();
-                    }
-                }
-                finally
-                {
-                    siloScope?.Dispose();
-                }
+                Console.ReadKey();
             }
         }
     }
